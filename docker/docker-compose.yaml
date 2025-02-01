@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: ../
+      dockerfile: ./docker/app/Dockerfile
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    volumes:
+      - ../:/app
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: "user"
+      POSTGRES_PASSWORD: "password"
+      POSTGRES_DB: "quest"
+    volumes:
+      - postgres:/data/postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  postgres:
+
