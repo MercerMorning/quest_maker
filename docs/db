@@ -15,20 +15,20 @@ Table character {
 Table step {
   id serial [pk]
   number int
-  type enum('narration', 'player_action', 'character_action')
   created_at timestamp
   updated_at timestamp
-  next_step int [ref: > step.id]
+  next_step int [null, ref: > step.id]
 }
 
-Table narration {
+Table narration_action {
   id serial [pk]
   step int [ref: > step.id]
-  text varchar
+  text varchar 
 }
 
 Table player_action {
   id serial [pk]
+  step int [ref: > step.id]
 }
 
 Table player_action_choice {
@@ -42,13 +42,26 @@ Table player_action_choice {
 
 Table character_action {
   id serial [pk]
+  character int [ref: > character.id]
+  step int [ref: > step.id]
 }
 
 Table character_action_choice {
   id serial [pk]
-  player_action int [ref: > character_action.id]
+  character_action int [ref: > character_action.id]
   text varchar
   violence_point_condition int
   whatever_point_condition int
   pacifism_point_condition int
+}
+
+Table playthrough {
+  id serial [pk]
+  player_name text
+  quest int [ref: > quest.id]
+  step int [ref: > step.id]
+  finished boolean
+  violence_point int
+  whatever_point int
+  pacifism_point int
 }
