@@ -1,0 +1,67 @@
+Table quest {
+  id serial [pk]
+  title varchar
+  initial_step int [ref: > step.id]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table character {
+  id serial [pk]
+  quest int [ref: > quest.id]
+  name varchar
+}
+
+Table step {
+  id serial [pk]
+  number int
+  created_at timestamp
+  updated_at timestamp
+  next_step int [null, ref: > step.id]
+}
+
+Table narration_action {
+  id serial [pk]
+  step int [ref: > step.id]
+  text varchar 
+}
+
+Table player_action {
+  id serial [pk]
+  step int [ref: > step.id]
+}
+
+Table player_action_choice {
+  id serial [pk]
+  player_action int [ref: > player_action.id]
+  text varchar
+  violence_point int
+  whatever_point int
+  pacifism_point int
+}
+
+Table character_action {
+  id serial [pk]
+  character int [ref: > character.id]
+  step int [ref: > step.id]
+}
+
+Table character_action_choice {
+  id serial [pk]
+  character_action int [ref: > character_action.id]
+  text varchar
+  violence_point_condition int
+  whatever_point_condition int
+  pacifism_point_condition int
+}
+
+Table playthrough {
+  id serial [pk]
+  player_name text
+  quest int [ref: > quest.id]
+  step int [ref: > step.id]
+  finished boolean
+  violence_point int
+  whatever_point int
+  pacifism_point int
+}
