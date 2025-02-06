@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     volumes:
       - ../:/app
+    depends_on:
+      - postgres
 
   postgres:
     image: postgres:17
