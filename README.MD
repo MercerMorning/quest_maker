@@ -47,3 +47,60 @@ TextQuest - это мультиплеерная текстовая ролева�
 Стек frontend: Javascript, html, css
 
 База данных: PostgreSQL
+
+
+### Примеры запросов
+
+make_quest
+```
+{
+    "title": "Приключения Каджита",
+    "characters": [
+        { "name": "Каджит" },
+        { "name": "Стражник" }
+    ],
+    "steps": [
+        {
+            "type": "narration",
+            "body": {
+                "text": "Каджит вышел из кустов."
+            }
+        },
+        {
+            "type": "narration",
+            "body": {
+                "text": "Перед ним стоял хмурый стражник."
+            }
+        },
+        {
+            "type": "player_action",
+            "body": {
+                "choices": [
+                    {
+                        "text": "Спросить дорогу к городу",
+                        "violence_point": 0,
+                        "whatever_point": 1,
+                        "pacifism_point": 2
+                    },
+                    {
+                        "text": "Атаковать стражника",
+                        "violence_point": 3,
+                        "whatever_point": 0,
+                        "pacifism_point": 0
+                    }
+                ]
+            }
+        },
+        {
+            "type": "character_action",
+            "body": {
+                "character_name": "Стражник",
+                "text": "Проходи, но не делай глупостей.",
+                "violence_point_condition": 0,
+                "whatever_point_condition": 1,
+                "pacifism_point_condition": 2
+            }
+        }
+    ]
+}
+```
