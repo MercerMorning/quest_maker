@@ -7,7 +7,6 @@ import (
 	_ "github.com/lib/pq"
 	"net/http"
 	"quest_maker/handlers"
-	migrator "quest_maker/migrator"
 )
 
 const migrationsDir = "migrations"
@@ -28,7 +27,7 @@ func main() {
 		panic(err)
 	}
 
-	defer db.Close()
+	//defer db.Close()
 
 	rows, err := db.Query("SELECT 1")
 
@@ -38,17 +37,19 @@ func main() {
 
 	fmt.Println(rows)
 
-	migrator := migrator.MustGetNewMigrator(MigrationsFS, migrationsDir)
+	//migrator := migrator.MustGetNewMigrator(MigrationsFS, migrationsDir)
 
-	err = migrator.ApplyMigrations(db)
-	if err != nil {
-		panic(err)
-	}
+	//err = migrator.ApplyMigrations(db)
+	//if err != nil {
+	//	panic(err)
+	//}
 
-	fmt.Printf("Migrations applied!!")
+	//fmt.Printf("Migrations applied!!")
 
 	rootHandler := &handlers.RootHandler{}
+	questHandler := &handlers.QuestHandler{DB: db}
 	http.Handle("/", rootHandler)
+	http.Handle("/make_quest", questHandler)
 	fmt.Println("starting server at :8080")
 	http.ListenAndServe(":8080", nil)
 }
