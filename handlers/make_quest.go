@@ -44,11 +44,11 @@ type CharacterActionBody struct {
 	PacifismPointCondition int    `json:"pacifism_point_condition"`
 }
 
-type QuestHandler struct {
+type MakeQuestHandler struct {
 	DB *sql.DB
 }
 
-func (h *QuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *MakeQuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var req QuestRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -81,6 +81,7 @@ func (h *QuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var firstStepID int
+	var prevStepID *int
 	for i, step := range req.Steps {
 		var stepID int
 		err := tx.QueryRow("INSERT INTO step (number, created_at, updated_at) VALUES ($1, NOW(), NOW()) RETURNING id", i+1).Scan(&stepID)
@@ -88,8 +89,14 @@ func (h *QuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to insert step", http.StatusInternalServerError)
 			return
 		}
-		if i == 0 {
-			firstStepID = stepID
+
+		// Устанавливаем связь с предыдущим шагом
+		if prevStepID != nil {
+			_, err := tx.Exec("UPDATE step SET next_step = $1 WHERE id = $2", stepID, *prevStepID)
+			if err != nil {
+				http.Error(w, "Failed to update next_step", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		switch step.Type {
@@ -148,6 +155,12 @@ func (h *QuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Failed to insert character action choice", http.StatusInternalServerError)
 				return
 			}
+		}
+		// Сохраняем ID текущего шага для следующей итерации
+		prevStepID = &stepID
+
+		if i == 0 {
+			firstStepID = stepID
 		}
 	}
 

@@ -104,3 +104,22 @@ make_quest
     ]
 }
 ```
+
+make_playthrough
+```
+{
+  "player_name": "JohnDoe",
+  "quest_id": 1
+}
+```
+
+get_step?playthrough_id=2
+
+
+make_choice
+```
+{
+  "playthrough_id": 2,
+  "choice_id": 9
+}
+```
