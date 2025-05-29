@@ -1,0 +1,149 @@
+
+{
+    "title": "Тайна заброшенного замка",
+    "characters": [
+        { "name": "Страж ворот" },
+        { "name": "Призрак рыцаря" },
+        { "name": "Древний маг" }
+    ],
+    "steps": [
+        {
+            "type": "narration",
+            "body": {
+                "text": "Вы с напарником подходите к заброшенному замку. Массивные ворота заперты, но справа виднеется пролом в стене."
+            }
+        },
+        {
+            "type": "player_action",
+            "body": {
+                "choices": [
+                    {
+                        "text": "Попытаться взломать замок на воротах",
+                        "violence_point": 1,
+                        "whatever_point": 2,
+                        "pacifism_point": 0,
+                        "player_index": 1
+                    },
+                    {
+                        "text": "Громко постучать в ворота",
+                        "violence_point": 0,
+                        "whatever_point": 1,
+                        "pacifism_point": 1,
+                        "player_index": 1
+                    },
+                    {
+                        "text": "Пролезть через пролом в стене",
+                        "violence_point": 2,
+                        "whatever_point": 1,
+                        "pacifism_point": 0,
+                        "player_index": 2
+                    },
+                    {
+                        "text": "Осмотреть местность в поисках другого входа",
+                        "violence_point": 0,
+                        "whatever_point": 0,
+                        "pacifism_point": 2,
+                        "player_index": 2
+                    }
+                ]
+            }
+        },
+        {
+            "type": "character_action",
+            "body": {
+                "character_name": "Страж ворот",
+                "choices": [
+                    {
+                        "text": "Призрачный страж материализуется: 'Кто посмел нарушить покой замка!' Он выглядит враждебно.",
+                        "violence_point_condition": 3,
+                        "whatever_point_condition": 2,
+                        "pacifism_point_condition": 0,
+                        "priority": 1,
+                        "next_step_number": 7
+                    },
+                    {
+                        "text": "Старый страж появляется: 'Давно никого не было... Что ищете, путники?'",
+                        "violence_point_condition": 1,
+                        "whatever_point_condition": 1,
+                        "pacifism_point_condition": 1,
+                        "priority": 1,
+                        "next_step_number": 4
+                    },
+                    {
+                        "text": "Мудрый страж кивает: 'Вижу, вы не желаете зла. Проходите, но осторожно.'",
+                        "violence_point_condition": 0,
+                        "whatever_point_condition": 0,
+                        "pacifism_point_condition": 2,
+                        "priority": 1,
+                        "next_step_number": 5
+                    }
+                ]
+            }
+        },
+        {
+            "type": "player_action",
+            "body": {
+                "choices": [
+                    {
+                        "text": "Объяснить, что ищете сокровища",
+                        "violence_point": 0,
+                        "whatever_point": 2,
+                        "pacifism_point": 0,
+                        "player_index": 1
+                    },
+                    {
+                        "text": "Сказать, что просто путешествуете",
+                        "violence_point": 0,
+                        "whatever_point": 0,
+                        "pacifism_point": 1,
+                        "player_index": 2
+                    }
+                ]
+            }
+        },
+        {
+            "type": "character_action",
+            "body": {
+                "character_name": "Призрак рыцаря",
+                "choices": [
+                    {
+                        "text": "Призрак рыцаря появляется: 'Следуйте за мной. Покажу вам тайную комнату.'",
+                        "violence_point_condition": 0,
+                        "whatever_point_condition": 1,
+                        "pacifism_point_condition": 3,
+                        "priority": 1,
+                        "next_step_number": 6
+                    }
+                ]
+            }
+        },
+        {
+            "type": "narration",
+            "body": {
+                "text": "Вы находите древний артефакт и мирно покидаете замок. Успех!"
+            }
+        },
+        {
+            "type": "character_action",
+            "body": {
+                "character_name": "Древний маг",
+                "choices": [
+                    {
+                        "text": "Темный маг пробуждается: 'Нарушители! Вы разбудили древнее зло!'",
+                        "violence_point_condition": 3,
+                        "whatever_point_condition": 2,
+                        "pacifism_point_condition": 0,
+                        "priority": 1,
+                        "next_step_number": 8
+                    }
+                ]
+            }
+        },
+        {
+            "type": "narration",
+            "body": {
+                "text": "Битва с магом была тяжелой, но вы победили. Однако замок рушится..."
+            }
+        }
+    ]
+}

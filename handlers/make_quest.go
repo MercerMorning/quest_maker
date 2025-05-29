@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -34,14 +35,21 @@ type PlayerActionChoice struct {
 	ViolencePoint int    `json:"violence_point"`
 	WhateverPoint int    `json:"whatever_point"`
 	PacifismPoint int    `json:"pacifism_point"`
+	PlayerIndex   int    `json:"player_index"` // 1 для первого игрока, 2 для второго
 }
 
 type CharacterActionBody struct {
-	CharacterName          string `json:"character_name"`
+	CharacterName string                  `json:"character_name"`
+	Choices       []CharacterActionChoice `json:"choices"`
+}
+
+type CharacterActionChoice struct {
 	Text                   string `json:"text"`
 	ViolencePointCondition int    `json:"violence_point_condition"`
 	WhateverPointCondition int    `json:"whatever_point_condition"`
 	PacifismPointCondition int    `json:"pacifism_point_condition"`
+	Priority               int    `json:"priority"`
+	NextStepNumber         int    `json:"next_step_number"` // Номер шага для перехода
 }
 
 type MakeQuestHandler struct {
@@ -57,6 +65,7 @@ func (h *MakeQuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.DB.Begin()
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "Failed to start transaction", http.StatusInternalServerError)
 		return
 	}
@@ -80,24 +89,30 @@ func (h *MakeQuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		characterIDs[char.Name] = charID
 	}
 
-	var firstStepID int
-	var prevStepID *int
-	for i, step := range req.Steps {
+	// Сначала создаем все шаги без содержимого
+	stepIDs := make([]int, len(req.Steps))
+	for i := range req.Steps {
 		var stepID int
 		err := tx.QueryRow("INSERT INTO step (number, created_at, updated_at) VALUES ($1, NOW(), NOW()) RETURNING id", i+1).Scan(&stepID)
 		if err != nil {
 			http.Error(w, "Failed to insert step", http.StatusInternalServerError)
 			return
 		}
+		stepIDs[i] = stepID
+	}
 
-		// Устанавливаем связь с предыдущим шагом
-		if prevStepID != nil {
-			_, err := tx.Exec("UPDATE step SET next_step = $1 WHERE id = $2", stepID, *prevStepID)
-			if err != nil {
-				http.Error(w, "Failed to update next_step", http.StatusInternalServerError)
-				return
-			}
+	// Устанавливаем связи между шагами (каждый шаг ведет к следующему по умолчанию)
+	for i := 0; i < len(stepIDs)-1; i++ {
+		_, err := tx.Exec("UPDATE step SET next_step = $1 WHERE id = $2", stepIDs[i+1], stepIDs[i])
+		if err != nil {
+			http.Error(w, "Failed to update next_step", http.StatusInternalServerError)
+			return
 		}
+	}
+
+	// Теперь создаем содержимое для каждого шага
+	for i, step := range req.Steps {
+		stepID := stepIDs[i]
 
 		switch step.Type {
 		case "narration":
@@ -120,10 +135,15 @@ func (h *MakeQuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			choices := body["choices"].([]interface{})
 			for _, choice := range choices {
 				c := choice.(map[string]interface{})
+				playerIndex := 0 // По умолчанию для всех игроков
+				if idx, ok := c["player_index"]; ok {
+					playerIndex = int(idx.(float64))
+				}
 				_, err := tx.Exec(
-					"INSERT INTO player_action_choice (player_action, text, violence_point, whatever_point, pacifism_point) VALUES ($1, $2, $3, $4, $5)",
+					"INSERT INTO player_action_choice (player_action, text, violence_point, whatever_point, pacifism_point, player_index) VALUES ($1, $2, $3, $4, $5, $6)",
 					playerActionID, c["text"].(string),
 					int(c["violence_point"].(float64)), int(c["whatever_point"].(float64)), int(c["pacifism_point"].(float64)),
+					playerIndex,
 				)
 				if err != nil {
 					http.Error(w, "Failed to insert player action choice", http.StatusInternalServerError)
@@ -146,25 +166,57 @@ func (h *MakeQuestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			_, err = tx.Exec(
-				"INSERT INTO character_action_choice (character_action, text, violence_point_condition, whatever_point_condition, pacifism_point_condition) VALUES ($1, $2, $3, $4, $5)",
-				characterActionID, body["text"].(string),
-				int(body["violence_point_condition"].(float64)), int(body["whatever_point_condition"].(float64)), int(body["pacifism_point_condition"].(float64)),
-			)
-			if err != nil {
-				http.Error(w, "Failed to insert character action choice", http.StatusInternalServerError)
+			choicesInterface, exists := body["choices"]
+			if !exists || choicesInterface == nil {
+				http.Error(w, "Missing or invalid choices in character_action", http.StatusBadRequest)
 				return
 			}
-		}
-		// Сохраняем ID текущего шага для следующей итерации
-		prevStepID = &stepID
 
-		if i == 0 {
-			firstStepID = stepID
+			choices, ok := choicesInterface.([]interface{})
+			if !ok {
+				http.Error(w, "Choices must be an array", http.StatusBadRequest)
+				return
+			}
+
+			for _, choice := range choices {
+				c := choice.(map[string]interface{})
+
+				// Находим ID следующего шага по его номеру
+				var nextStepID sql.NullInt64
+				if nextStepNum, ok := c["next_step_number"]; ok && nextStepNum != nil {
+					stepNum := int(nextStepNum.(float64))
+					// Проверяем, что номер шага валиден (от 1 до количества шагов)
+					if stepNum > 0 && stepNum <= len(req.Steps) {
+						// Используем правильный ID шага из массива (stepNum-1 так как массив с нуля)
+						nextStepID.Valid = true
+						nextStepID.Int64 = int64(stepIDs[stepNum-1])
+					}
+				}
+
+				priority := 0
+				if p, ok := c["priority"]; ok {
+					priority = int(p.(float64))
+				}
+
+				_, err = tx.Exec(
+					"INSERT INTO character_action_choice (character_action, text, violence_point_condition, whatever_point_condition, pacifism_point_condition, priority, next_step) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+					characterActionID, c["text"].(string),
+					int(c["violence_point_condition"].(float64)),
+					int(c["whatever_point_condition"].(float64)),
+					int(c["pacifism_point_condition"].(float64)),
+					priority,
+					nextStepID,
+				)
+				if err != nil {
+					http.Error(w, "Failed to insert character action choice", http.StatusInternalServerError)
+					return
+				}
+			}
 		}
 	}
 
-	_, err = tx.Exec("UPDATE quest SET initial_step = $1 WHERE id = $2", firstStepID, questID)
+	// Устанавливаем начальный шаг квеста
+	_, err = tx.Exec("UPDATE quest SET initial_step = $1 WHERE id = $2", stepIDs[0], questID)
 	if err != nil {
 		http.Error(w, "Failed to update quest initial_step", http.StatusInternalServerError)
 		return

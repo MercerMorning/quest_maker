@@ -1,0 +1,306 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextQuest - Многопользовательская игра</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .server-list {
+            display: grid;
+            gap: 10px;
+        }
+        .server-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .server-item:hover {
+            background-color: #f0f0f0;
+        }
+        .choice-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .choice-button:hover {
+            background-color: #0056b3;
+        }
+        .choice-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .player-choices {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        input, select, button {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .waiting {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TextQuest - Многопользовательская игра</h1>
+        
+        <div id="lobby-section">
+            <h2>Игровое лобби</h2>
+            
+            <div>
+                <h3>Создать новый сервер</h3>
+                <input type="text" id="server-name" placeholder="Название сервера">
+                <input type="text" id="player-name" placeholder="Ваше имя">
+                <select id="quest-select">
+                    <option value="1">Приключения Каджита</option>
+                </select>
+                <button onclick="createServer()">Создать сервер</button>
+            </div>
+            
+            <div>
+                <h3>Доступные серверы</h3>
+                <button onclick="loadServers()">Обновить список</button>
+                <div id="server-list" class="server-list"></div>
+            </div>
+        </div>
+        
+        <div id="game-section" style="display: none;">
+            <h2>Игра</h2>
+            <div id="game-content"></div>
+            <button onclick="leaveGame()">Покинуть игру</button>
+        </div>
+    </div>
+
+    <script>
+        let currentServerId = null;
+        let currentPlayerName = '';
+        let gameInterval = null;
+
+        function createServer() {
+            const serverName = document.getElementById('server-name').value;
+            const playerName = document.getElementById('player-name').value;
+            const questId = document.getElementById('quest-select').value;
+            
+            if (!serverName || !playerName) {
+                alert('Введите название сервера и ваше имя');
+                return;
+            }
+            
+            fetch('/create_server', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    quest_id: parseInt(questId),
+                    server_name: serverName,
+                    player_name: playerName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                currentServerId = data.server_id;
+                currentPlayerName = playerName;
+                joinGame();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка при создании сервера');
+            });
+        }
+
+        function loadServers() {
+            fetch('/list_servers')
+                .then(response => response.json())
+                .then(servers => {
+                    const serverList = document.getElementById('server-list');
+                    serverList.innerHTML = '';
+                    
+                    servers.forEach(server => {
+                        const serverDiv = document.createElement('div');
+                        serverDiv.className = 'server-item';
+                        serverDiv.innerHTML = `
+                            <h4>${server.server_name}</h4>
+                            <p>Квест: ${server.quest_title}</p>
+                            <p>Игроки: ${server.player_count}/${server.max_players}</p>
+                        `;
+                        serverDiv.onclick = () => joinServer(server.server_id);
+                        serverList.appendChild(serverDiv);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function joinServer(serverId) {
+            const playerName = prompt('Введите ваше имя:');
+            if (!playerName) return;
+            
+            fetch('/join_server', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    server_id: serverId,
+                    player_name: playerName
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    currentServerId = serverId;
+                    currentPlayerName = playerName;
+                    joinGame();
+                } else {
+                    alert('Не удалось присоединиться к серверу');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка при присоединении к серверу');
+            });
+        }
+
+        function joinGame() {
+            document.getElementById('lobby-section').style.display = 'none';
+            document.getElementById('game-section').style.display = 'block';
+            
+            // Начинаем обновлять состояние игры каждые 2 секунды
+            updateGameState();
+            gameInterval = setInterval(updateGameState, 2000);
+        }
+
+        function updateGameState() {
+            if (!currentServerId) return;
+            
+            fetch(`/get_multiplayer_state?server_id=${currentServerId}`)
+                .then(response => response.json())
+                .then(state => {
+                    const gameContent = document.getElementById('game-content');
+                    
+                    let html = '';
+                    
+                    if (state.step_text) {
+                        html += `<div class="story-text"><p>${state.step_text}</p></div>`;
+                    }
+                    
+                    if (state.choices && state.choices.length > 0) {
+                        html += '<div class="choices">';
+                        
+                        // Показываем выборы других игроков
+                        if (state.player_choices && Object.keys(state.player_choices).length > 0) {
+                            html += '<div class="player-choices"><h4>Выборы игроков:</h4>';
+                            for (const [player, choiceId] of Object.entries(state.player_choices)) {
+                                const choice = state.choices.find(c => c.choice_id === choiceId);
+                                html += `<p>${player}: ${choice ? choice.text : 'Неизвестный выбор'}</p>`;
+                            }
+                            html += '</div>';
+                        }
+                        
+                        // Показываем кнопки выбора
+                        const playerHasVoted = state.player_choices && state.player_choices[currentPlayerName];
+                        state.choices.forEach(choice => {
+                            const isSelected = playerHasVoted && state.player_choices[currentPlayerName] === choice.choice_id;
+                            html += `
+                                <button class="choice-button" 
+                                        onclick="makeChoice(${choice.choice_id})"
+                                        ${playerHasVoted ? 'disabled' : ''}
+                                        style="${isSelected ? 'background-color: #ffc107; color: black;' : ''}">
+                                    ${choice.text}
+                                    <br><small>Насилие: ${choice.violence_point}, Пофигизм: ${choice.whatever_point}, Пацифизм: ${choice.pacifism_point}</small>
+                                </button>
+                            `;
+                        });
+                        html += '</div>';
+                        
+                        if (state.all_players_voted) {
+                            html += '<div class="waiting"><p>Все игроки проголосовали. Переход к следующему шагу...</p></div>';
+                        } else {
+                            html += '<div class="waiting"><p>Ожидание выборов других игроков...</p></div>';
+                        }
+                    }
+                    
+                    gameContent.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function makeChoice(choiceId) {
+            fetch('/make_multiplayer_choice', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    server_id: currentServerId,
+                    player_name: currentPlayerName,
+                    choice_id: choiceId
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    updateGameState(); // Обновляем состояние сразу после выбора
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function leaveGame() {
+            if (gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            
+            currentServerId = null;
+            currentPlayerName = '';
+            
+            document.getElementById('lobby-section').style.display = 'block';
+            document.getElementById('game-section').style.display = 'none';
+            
+            loadServers(); // Обновляем список серверов
+        }
+
+        // Загружаем серверы при загрузке страницы
+        window.onload = function() {
+            loadServers();
+        };
+    </script>
+</body>
+</html>
