@@ -22,14 +22,6 @@ type StepResponse struct {
 	NextStep int                         `json:"next_step,omitempty"`
 }
 
-type PlayerActionChoiceProcess struct {
-	ChoiceID      int    `json:"choice_id"`
-	Text          string `json:"text"`
-	ViolencePoint int    `json:"violence_point"`
-	WhateverPoint int    `json:"whatever_point"`
-	PacifismPoint int    `json:"pacifism_point"`
-}
-
 func (h *GetCurrentStepHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	playthroughID := r.URL.Query().Get("playthrough_id")
 	if playthroughID == "" {
